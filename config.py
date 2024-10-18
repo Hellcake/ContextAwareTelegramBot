@@ -8,13 +8,14 @@ load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GIGACHAT_PASSWORD = os.getenv("GIGACHAT_PASSWORD")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Bot configuration
 MAX_MESSAGE_LENGTH = 280  # Maximum length of bot's response
 RESPONSE_DELAY = 2  # Delay in seconds before bot responds
 
 # Ensure the environment variables are set
-if not TELEGRAM_TOKEN or not OPENAI_API_KEY or not GIGACHAT_PASSWORD:
+if not TELEGRAM_TOKEN or not OPENAI_API_KEY or not GIGACHAT_PASSWORD or not GEMINI_API_KEY:
     raise ValueError(
-        "Please set the TELEGRAM_TOKEN and OPENAI_API_KEY environment variables in the .env file."
+        "Please set the TELEGRAM_TOKEN, OPENAI_API_KEY, GIGACHAT_PASSWORD and GEMINI_API_KEY environment variables in the .env file."
     )
