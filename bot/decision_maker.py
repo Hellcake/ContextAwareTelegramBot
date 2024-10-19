@@ -1,29 +1,39 @@
 import logging
-import random
-import time
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema import HumanMessage, SystemMessage
 from config import GEMINI_API_KEY
+
 
 class DecisionMaker:
     def __init__(self):
-        self.llm = ChatGoogleGenerativeAI(model="gemini-pro", google_api_key=GEMINI_API_KEY)
-        self.proactive_threshold = 300  # 5 minutes in seconds
-        self.min_human_response_time = 60  # 1 minute in seconds
+        """Инициализация DecisionMaker с использованием LLM и параметров тайминга."""
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-1.0-pro", google_api_key=GEMINI_API_KEY
+        )
+        self.proactive_threshold = (
+            300  # Порог времени для проактивных сообщений (5 минут)
+        )
+        self.min_human_response_time = (
+            60  # Минимальное время ответа от человека (1 минута)
+        )
 
-    async def should_respond(self, conversation_history, current_time, last_bot_message_time):
+    async def should_respond(
+        self, conversation_history, current_time, last_bot_message_time
+    ):
+        """Определяет, стоит ли боту отвечать на последнее сообщение в истории."""
         if not conversation_history:
             return False
 
         last_message = conversation_history[-1]
         if last_message["user"] == "Bot":
-            logging.info("Last message was from the bot. Not responding.")
+            logging.info("Последнее сообщение было от бота. Не отвечаем.")
             return False
 
         try:
             conversation_text = "\n".join(
-                [f"{msg['user']}: {msg['message']}" for msg in conversation_history[-10:]]
+                [
+                    f"{msg['user']}: {msg['message']}"
+                    for msg in conversation_history[-10:]
+                ]
             )
             time_since_last_bot = current_time - last_bot_message_time
             prompt = [
@@ -54,37 +64,51 @@ class DecisionMaker:
             ]
             response = self.llm.invoke(prompt)
             should_respond = response.content.lower().strip() == "да"
-            logging.info(f"Decision to respond: {should_respond}")
             return should_respond
         except Exception as e:
-            logging.error(f"Error in should_respond: {str(e)}", exc_info=True)
+            logging.error(f"Ошибка в should_respond: {str(e)}", exc_info=True)
             return False
 
-    async def should_initiate(self, current_time, last_human_message_time, last_bot_message_time):
+    async def should_initiate(
+        self, current_time, last_human_message_time, last_bot_message_time
+    ):
+        """Определяет, стоит ли боту инициировать новое сообщение."""
         time_since_last_human = current_time - last_human_message_time
         time_since_last_bot = current_time - last_bot_message_time
-        
-        logging.info(f"Time since last human message: {time_since_last_human} seconds")
-        logging.info(f"Time since last bot message: {time_since_last_bot} seconds")
+
+        logging.info(
+            f"Время с последнего сообщения от человека: {time_since_last_human} секунд"
+        )
+        logging.info(
+            f"Время с последнего сообщения от бота: {time_since_last_bot} секунд"
+        )
 
         if time_since_last_human > self.min_human_response_time:
-            logging.info("New message from human")
+            logging.info("Новое сообщение от человека")
             return True
 
         if time_since_last_bot > self.proactive_threshold:
-            logging.info("Enough time has passed since the last bot message")
+            logging.info("Прошло достаточно времени с последнего сообщения бота")
             return True
 
         return False
 
     async def generate_response(self, conversation_history, target_user=None):
-        logging.info(f"Generating response based on conversation history")
-        
+        """Генерирует ответ на основе истории разговора."""
+        logging.info(f"Генерация ответа на основе истории разговора")
+
         try:
             conversation_text = "\n".join(
-                [f"{msg['user']}: {msg['message']}" for msg in conversation_history[-10:]]
+                [
+                    f"{msg['user']}: {msg['message']}"
+                    for msg in conversation_history[-10:]
+                ]
             )
-            target_instruction = f"Обратитесь к пользователю {target_user} в своем ответе." if target_user else ""
+            target_instruction = (
+                f"Обратитесь к пользователю {target_user} в своем ответе."
+                if target_user
+                else ""
+            )
             prompt = [
                 f"""
                 Вы - дружелюбный и умный ИИ-ассистент в групповом чате Telegram. Ваша задача - поддерживать 
@@ -116,22 +140,27 @@ class DecisionMaker:
             ]
             response = self.llm.invoke(prompt)
             generated_response = response.content.strip()
-            logging.info(f"Generated response: {generated_response}")
+            logging.info(f"Сгенерированный ответ: {generated_response}")
             return generated_response
         except Exception as e:
-            logging.error(f"Error in generate_response: {str(e)}", exc_info=True)
+            logging.error(f"Ошибка в generate_response: {str(e)}", exc_info=True)
             return "Извините, произошла ошибка при генерации ответа."
 
     async def initiate_conversation(self, conversation_history):
-        logging.info(f"Initiating conversation based on conversation history")
+        """Инициирует новое сообщение на основе истории разговора."""
+        logging.info(f"Инициация разговора на основе истории")
+
         last_message = conversation_history[-1]
         if last_message["user"] == "Bot":
-            logging.info("Last message was from the bot. Not responding.")
+            logging.info("Последнее сообщение было от бота. Не отвечаем.")
             return False
-        
+
         try:
             conversation_text = "\n".join(
-                [f"{msg['user']}: {msg['message']}" for msg in conversation_history[-5:]]
+                [
+                    f"{msg['user']}: {msg['message']}"
+                    for msg in conversation_history[-5:]
+                ]
             )
             prompt = [
                 f"""
@@ -163,8 +192,8 @@ class DecisionMaker:
             ]
             response = self.llm.invoke(prompt)
             initiated_message = response.content.strip()
-            logging.info(f"Initiated message: {initiated_message}")
+            logging.info(f"Инициировано сообщение: {initiated_message}")
             return initiated_message
         except Exception as e:
-            logging.error(f"Error in initiate_conversation: {str(e)}", exc_info=True)
+            logging.error(f"Ошибка в initiate_conversation: {str(e)}", exc_info=True)
             return "Извините, у меня возникли проблемы с генерацией новой темы. Возможно, кто-то из вас хочет предложить интересную тему для обсуждения?"

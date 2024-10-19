@@ -4,80 +4,86 @@ import time
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from .decision_maker import DecisionMaker
-from config import TELEGRAM_TOKEN, RESPONSE_DELAY
+from config import RESPONSE_DELAY
 from language.russian_processor import RussianProcessor
+
 
 class TelegramHandler:
     def __init__(self, token):
+        # Инициализация приложения Telegram с помощью предоставленного токена
         self.application = Application.builder().token(token).build()
         self.decision_maker = DecisionMaker()
         self.russian_processor = RussianProcessor()
         self._is_running = False
         self._stop_event = asyncio.Event()
-        self.conversation_history = []
-        self.last_human_message_time = time.time()
-        self.last_bot_message_time = time.time()
+        self.conversation_history = []  # История сообщений
+        self.last_human_message_time = (
+            time.time()
+        )  # Время последнего сообщения от человека
+        self.last_bot_message_time = time.time()  # Время последнего сообщения от бота
         self.current_time = time.time()
         self.group_chat_id = None
         self.proactive_messaging_task = None
 
-    async def start_command(self, update: Update, context):
+    async def start_command(self, update: Update):
+        # Обработка команды /start
         self.group_chat_id = update.effective_chat.id
         await update.message.reply_text(
             "Бот запущен и готов к работе в групповом чате!"
         )
         logging.info(f"Bot started in chat ID: {self.group_chat_id}")
 
-    async def handle_message(self, update: Update, context):
+    async def handle_message(self, update: Update):
+        # Обработка текстовых сообщений
         if not update.message or not update.message.text:
-            logging.info("Received an update without a text message. Ignoring.")
+            logging.info("Получено обновление без текстового сообщения. Игнорируется.")
             return
 
         chat_type = update.message.chat.type
         message = update.message.text
         user = update.effective_user.first_name
 
-        logging.info(f"Received message in {chat_type} chat from {user}: {message}")
+        logging.info(f"Получено сообщение в {chat_type} чате от {user}: {message}")
 
         if chat_type not in ["group", "supergroup"]:
             logging.info(
-                f"Message received in {chat_type} chat. Bot only responds in group chats."
+                f"Сообщение получено в {chat_type} чате. Бот отвечает только в групповых чатах."
             )
             return
 
         self.group_chat_id = update.effective_chat.id
-        
+
         processed_message = self.russian_processor.process(message)
 
-        # Add the message to conversation history
+        # Добавление сообщения в историю
         self.conversation_history.append({"user": user, "message": processed_message})
-        # Keep only the last 20 messages
+        # Хранить только последние 20 сообщений
         self.conversation_history = self.conversation_history[-20:]
 
-        # Update last human message time
+        # Обновление времени последнего сообщения от человека
         self.last_human_message_time = time.time()
 
         should_respond = await self.decision_maker.should_respond(
-            self.conversation_history, 
-            self.current_time,    
-            self.last_bot_message_time)
-        
-        logging.info(f"Decision to respond: {should_respond}")
+            self.conversation_history, self.current_time, self.last_bot_message_time
+        )
+
+        logging.info(f"Решение ответить: {should_respond}")
 
         if should_respond:
-            await asyncio.sleep(RESPONSE_DELAY)  # Add a small delay before responding
-            response = await self.decision_maker.generate_response(self.conversation_history, target_user=user)
+            await asyncio.sleep(RESPONSE_DELAY)  # Небольшая задержка перед ответом
+            response = await self.decision_maker.generate_response(
+                self.conversation_history, target_user=user
+            )
             await update.message.reply_text(response)
-            logging.info(f"Bot responded in the group chat")
-            # Add bot's response to conversation history
+            logging.info(f"Бот ответил в групповом чате")
+            # Добавление ответа бота в историю
             self.conversation_history.append({"user": "Bot", "message": response})
-            # Update last bot message time
+            # Обновление времени последнего сообщения от бота
             self.last_bot_message_time = time.time()
-        
-        
 
     async def proactive_messaging(self):
-        logging.info("Proactive messaging loop started")
+        # Цикл проактивных сообщений
+        logging.info("Запущен цикл проактивных сообщений")
         while self._is_running:
             try:
                 current_time = time.time()
@@ -86,45 +92,61 @@ class TelegramHandler:
                     self.last_human_message_time,
                     self.last_bot_message_time,
                 )
-                logging.info(f"Should initiate proactive message: {should_initiate}")
+                logging.info(
+                    f"Нужно ли инициировать проактивное сообщение: {should_initiate}"
+                )
 
                 if should_initiate and self.group_chat_id:
-                    message = await self.decision_maker.initiate_conversation(self.conversation_history)
-                    await self.application.bot.send_message(chat_id=self.group_chat_id, text=message)
-                    self.conversation_history.append({"user": "Bot", "message": message})
+                    message = await self.decision_maker.initiate_conversation(
+                        self.conversation_history
+                    )
+                    await self.application.bot.send_message(
+                        chat_id=self.group_chat_id, text=message
+                    )
+                    self.conversation_history.append(
+                        {"user": "Bot", "message": message}
+                    )
                     self.last_bot_message_time = current_time
-                    logging.info(f"Bot initiated conversation: {message}")
+                    logging.info(f"Бот инициировал разговор: {message}")
                 else:
-                    logging.info("Conditions not met for proactive message")
+                    logging.info("Условия не выполнены для проактивного сообщения")
             except Exception as e:
-                logging.error(f"Error in proactive messaging: {str(e)}", exc_info=True)
-            await asyncio.sleep(60)  # Check every minute
+                logging.error(
+                    f"Ошибка в проактивных сообщениях: {str(e)}", exc_info=True
+                )
+            await asyncio.sleep(60)  # Проверка каждую минуту
 
     async def start(self):
+        # Запуск обработки команд и сообщений
         self.application.add_handler(CommandHandler("start", self.start_command))
-        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        self.application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message)
+        )
 
-        logging.info("Starting bot polling...")
+        logging.info("Запуск опроса бота...")
         await self.application.initialize()
         await self.application.start()
         self._is_running = True
 
         try:
             await self.application.updater.start_polling()
-            logging.info("Bot is running. Press Ctrl+C to stop.")
+            logging.info("Бот работает. Нажмите Ctrl+C для остановки.")
 
-            # Start proactive messaging
-            self.proactive_messaging_task = asyncio.create_task(self.proactive_messaging())
+            # Запуск проактивных сообщений
+            self.proactive_messaging_task = asyncio.create_task(
+                self.proactive_messaging()
+            )
 
-            await self._stop_event.wait()  # Wait until stop_event is set
+            await self._stop_event.wait()  # Ожидание установки stop_event
         finally:
             await self.stop()
 
     async def stop(self):
+        # Остановка бота
         if self._is_running:
-            logging.info("Stopping bot...")
+            logging.info("Остановка бота...")
             self._is_running = False
-            self._stop_event.set()  # Signal the polling to stop
+            self._stop_event.set()  # Сигнал к остановке опроса
 
             if self.proactive_messaging_task:
                 self.proactive_messaging_task.cancel()
@@ -138,6 +160,6 @@ class TelegramHandler:
 
             await self.application.stop()
             await self.application.shutdown()
-            logging.info("Bot has been stopped.")
+            logging.info("Бот остановлен.")
         else:
-            logging.info("Bot is not running.")
+            logging.info("Бот не работает.")

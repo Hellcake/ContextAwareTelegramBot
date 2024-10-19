@@ -1,4 +1,3 @@
-import re
 import nltk
 from nltk.tokenize import word_tokenize
 import logging
@@ -6,32 +5,36 @@ import logging
 
 class RussianProcessor:
     def __init__(self):
+        """Инициализация класса RussianProcessor."""
         self.ensure_nltk_data()
 
     def ensure_nltk_data(self):
+        """Проверка наличия необходимых данных NLTK и их загрузка при необходимости."""
         try:
             nltk.data.find("tokenizers/punkt")
         except LookupError:
-            logging.info("Downloading necessary NLTK data...")
+            logging.info("Загрузка необходимых данных NLTK...")
             nltk.download("punkt")
 
     def process(self, text):
-        logging.info(f"Processing text: {text}")
+        """
+        Обработка текста: преобразование в нижний регистр, токенизация и сборка обратно в строку.
 
-        # Convert to lowercase
+        :param text: Входной текст для обработки.
+        :return: Обработанный текст.
+        """
+        logging.info(f"Обработка текста: {text}")
+
+        # Преобразование в нижний регистр
         text = text.lower()
-        logging.info(f"Lowercased text: {text}")
+        logging.info(f"Текст в нижнем регистре: {text}")
 
-        # # Remove punctuation
-        # text = re.sub(r'[^\w\s]', '', text)
-        # logging.info(f"Text after removing punctuation: {text}")
-
-        # Tokenize
+        # Токенизация текста
         tokens = word_tokenize(text, language="russian")
-        logging.info(f"Tokenized text: {tokens}")
+        logging.info(f"Токенизированный текст: {tokens}")
 
-        # Join tokens back into a string
+        # Сборка токенов обратно в строку
         processed_text = " ".join(tokens)
-        logging.info(f"Final processed text: {processed_text}")
+        logging.info(f"Итоговый обработанный текст: {processed_text}")
 
         return processed_text

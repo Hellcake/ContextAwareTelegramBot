@@ -1,21 +1,26 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Загрузка переменных окружения из файла .env
 load_dotenv()
 
-# Telegram and OpenAI API tokens
+# Токены API Telegram и OpenAI
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GIGACHAT_PASSWORD = os.getenv("GIGACHAT_PASSWORD")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Bot configuration
-MAX_MESSAGE_LENGTH = 280  # Maximum length of bot's response
-RESPONSE_DELAY = 2  # Delay in seconds before bot responds
+# Конфигурация бота
+MAX_MESSAGE_LENGTH = 280  # Максимальная длина ответа бота
+RESPONSE_DELAY = 2  # Задержка в секундах перед ответом бота
 
-# Ensure the environment variables are set
-if not TELEGRAM_TOKEN or not OPENAI_API_KEY or not GIGACHAT_PASSWORD or not GEMINI_API_KEY:
+# Обеспечение настройки переменных окружения
+if (
+    not TELEGRAM_TOKEN
+    or not OPENAI_API_KEY
+    or not GIGACHAT_PASSWORD
+    or not GEMINI_API_KEY
+):
     raise ValueError(
-        "Please set the TELEGRAM_TOKEN, OPENAI_API_KEY, GIGACHAT_PASSWORD and GEMINI_API_KEY environment variables in the .env file."
+        "Установите переменные окружения TELEGRAM_TOKEN, OPENAI_API_KEY, GIGACHAT_PASSWORD и GEMINI_API_KEY в файле .env."
     )
