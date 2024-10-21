@@ -23,7 +23,7 @@ class DecisionMaker:
         if not conversation_history:
             return False
 
-        last_message = conversation_history[-1]
+        last_message = conversation_history[-1:]
         if last_message["user"] == "Bot":
             logging.info("Последнее сообщение было от бота. Не отвечаем.")
             return False

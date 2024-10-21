@@ -25,7 +25,7 @@ class TelegramHandler:
         self.group_chat_id = None
         self.proactive_messaging_task = None
 
-    async def start_command(self, update: Update):
+    async def start_command(self, update: Update, context):
         # Обработка команды /start
         self.group_chat_id = update.effective_chat.id
         await update.message.reply_text(
@@ -33,7 +33,7 @@ class TelegramHandler:
         )
         logging.info(f"Bot started in chat ID: {self.group_chat_id}")
 
-    async def handle_message(self, update: Update):
+    async def handle_message(self, update: Update, context):
         # Обработка текстовых сообщений
         if not update.message or not update.message.text:
             logging.info("Получено обновление без текстового сообщения. Игнорируется.")
