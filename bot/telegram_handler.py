@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import time
+from regex import B
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from .decision_maker import DecisionMaker
@@ -100,13 +101,16 @@ class TelegramHandler:
                     message = await self.decision_maker.initiate_conversation(
                         self.conversation_history
                     )
-                    await self.application.bot.send_message(
-                        chat_id=self.group_chat_id, text=message
-                    )
-                    self.conversation_history.append(
-                        {"user": "Bot", "message": message}
-                    )
-                    self.last_bot_message_time = current_time
+                    if not isinstance(message, bool):
+                        await self.application.bot.send_message(
+                            chat_id=self.group_chat_id, text=message
+                        )
+                        self.conversation_history.append(
+                            {"user": "Bot", "message": message}
+                        )
+                        self.last_bot_message_time = current_time
+                    else:
+                        logging.info("Бот не ответил в групповом чате")
                     logging.info(f"Бот инициировал разговор: {message}")
                 else:
                     logging.info("Условия не выполнены для проактивного сообщения")
